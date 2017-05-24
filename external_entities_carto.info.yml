@@ -1,0 +1,7 @@
+name: Remote entities CARTO
+type: module
+description: Manage CARTO data as external Drupal entities
+core: 8.x
+package: Carto
+dependencies:
+  - geofield
