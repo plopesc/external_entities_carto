@@ -21,7 +21,6 @@ class CartoClient extends ExternalEntityStorageClientBase {
     $query = 'DELETE FROM ' . $this->configuration['endpoint'] . ' WHERE cartodb_id = ' . $entity->externalId();
 
     $response = $this->cartoExecuteQuery($query);
-
   }
 
   /**
@@ -29,7 +28,6 @@ class CartoClient extends ExternalEntityStorageClientBase {
    */
   public function load($id) {
     $query = 'SELECT * FROM ' . $this->configuration['endpoint'] . ' WHERE cartodb_id = ' . $id;
-
     $response = $this->cartoExecuteQuery($query);
 
     return (object) $this->decoder->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'][0];
@@ -57,7 +55,6 @@ class CartoClient extends ExternalEntityStorageClientBase {
       $this->cartoExecuteQuery($query);
 
       $object = $this->load($entity->externalId());
-
       $result = SAVED_UPDATED;
     }
     else {
@@ -82,7 +79,6 @@ class CartoClient extends ExternalEntityStorageClientBase {
       $response = $this->cartoExecuteQuery($query);
       $id = $this->decoder->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'][0]['cartodb_id'];
       $object = $this->load($id);
-
       $result = SAVED_NEW;
     }
 
@@ -95,7 +91,6 @@ class CartoClient extends ExternalEntityStorageClientBase {
    */
   public function query(array $parameters) {
     $query = 'SELECT * FROM ' . $this->configuration['endpoint'];
-
     if ($parameters) {
       $query .= ' LIMIT ' . $parameters['pagesize'] . ' OFFSET ' . $parameters['page'];
     }
