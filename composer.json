@@ -11,6 +11,7 @@
     "source": "http://cgit.drupalcode.org/remote_entities_carto"
   },
   "require": {
-    "drupal/geofield": "~1.0"
+    "drupal/geofield": "~1.0",
+    "drupal/external_entities: "~1.0"
   }
 }
