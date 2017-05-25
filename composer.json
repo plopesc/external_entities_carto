@@ -12,6 +12,6 @@
   },
   "require": {
     "drupal/geofield": "~1.0",
-    "drupal/external_entities: "~1.0"
+    "drupal/external_entities": "~1.0"
   }
 }
