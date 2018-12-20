@@ -27,7 +27,7 @@ class CartoClient extends Rest {
   public function load($id) {
     $query = 'SELECT * FROM ' . $this->configuration['endpoint'] . ' WHERE cartodb_id = ' . $id;
     $response = $this->cartoExecuteQuery($query);
-    return (object) $this->responseDecoderFactory->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'][0];
+    return (object) $this->responseDecoderFactory->getDecoder($this->configuration['response_format'])->decode($response->getBody())['rows'][0];
   }
 
   /**
@@ -74,7 +74,7 @@ class CartoClient extends Rest {
 
       $query = 'INSERT INTO ' . $this->configuration['endpoint'] . ' (' . implode(', ', $keys) . ') VALUES (' . implode(', ', $fields) .')  RETURNING cartodb_id';
       $response = $this->cartoExecuteQuery($query);
-      $id = $this->decoder->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'][0]['cartodb_id'];
+      $id = $this->decoder->getDecoder($this->configuration['response_format'])->decode($response->getBody())['rows'][0]['cartodb_id'];
       $object = $this->load($id);
       $result = SAVED_NEW;
     }
@@ -84,7 +84,13 @@ class CartoClient extends Rest {
   }
 
   public function loadMultiple(array $ids = NULL) {
-    $query = 'SELECT * FROM ' . $this->configuration['endpoint'] . ' WHERE cartodb_id IN (' . implode(',', $ids ) . ');';
+    $query = 'SELECT * FROM ' . $this->configuration['endpoint'];
+    // Sometimes we get an array with null values via Search API. Make sure to
+    // filter it first.
+    $ids = array_filter($ids);
+    if (!empty($ids)) {
+      $query .= ' WHERE cartodb_id IN (' . implode(',', $ids ) . ');';
+    }
     $response = $this->cartoExecuteQuery($query);
     $content = $response->getBody();
     $format = $this->configuration['response_format'];
@@ -113,10 +119,12 @@ class CartoClient extends Rest {
 
     $response = $this->cartoExecuteQuery($query);
 
-    $results = $this->responseDecoderFactory->getDecoder($this->configuration['format'])
+    $results = $this->responseDecoderFactory->getDecoder($this->configuration['response_format'])
       ->decode($response->getBody())['rows'];
     foreach ($results as &$result) {
-      $result = ((object) $result);
+      if (is_object($result)) {
+        $result = get_object_vars($result);
+      }
     }
     return $results;
   }
