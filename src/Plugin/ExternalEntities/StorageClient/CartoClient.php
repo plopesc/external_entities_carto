@@ -127,13 +127,11 @@ class CartoClient extends Rest {
    * @return \GuzzleHttp\Psr7\Response
    */
   protected function cartoExecuteQuery($query) {
-//    dpm($query);
     $response = $this->httpClient->get(
       'https://' . $this->configuration['api_key']['key'] . '.carto.com/api/v2/sql',
       [
         'query' => [
           'q' => $query,
-//          'api_key' => $this->configuration['parameters']['list']['api_key']
         ]
       ]
     );
