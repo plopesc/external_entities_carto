@@ -1,26 +1,24 @@
 <?php
 
-namespace Drupal\external_entities_carto\Plugin\ExternalEntityStorageClient;
+namespace Drupal\external_entities_carto\Plugin\ExternalEntities\StorageClient;
 
-use Drupal\external_entities\ExternalEntityStorageClientBase;
+use Drupal\external_entities\Plugin\ExternalEntities\StorageClient\Rest;
 
 /**
  * CARTO implementation of an external entity storage client.
  *
  * @ExternalEntityStorageClient(
  *   id = "carto_client",
- *   name = "CARTO"
+ *   label = "CARTO"
  * )
  */
-class CartoClient extends ExternalEntityStorageClientBase {
+class CartoClient extends Rest {
 
   /**
    * {@inheritdoc}
    */
   public function delete(\Drupal\external_entities\ExternalEntityInterface $entity) {
     $query = 'DELETE FROM ' . $this->configuration['endpoint'] . ' WHERE cartodb_id = ' . $entity->externalId();
-
-    $response = $this->cartoExecuteQuery($query);
   }
 
   /**
@@ -29,8 +27,7 @@ class CartoClient extends ExternalEntityStorageClientBase {
   public function load($id) {
     $query = 'SELECT * FROM ' . $this->configuration['endpoint'] . ' WHERE cartodb_id = ' . $id;
     $response = $this->cartoExecuteQuery($query);
-
-    return (object) $this->decoder->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'][0];
+    return (object) $this->responseDecoderFactory->getDecoder($this->configuration['response_format'])->decode($response->getBody())['rows'][0];
   }
 
   /**
@@ -77,7 +74,7 @@ class CartoClient extends ExternalEntityStorageClientBase {
 
       $query = 'INSERT INTO ' . $this->configuration['endpoint'] . ' (' . implode(', ', $keys) . ') VALUES (' . implode(', ', $fields) .')  RETURNING cartodb_id';
       $response = $this->cartoExecuteQuery($query);
-      $id = $this->decoder->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'][0]['cartodb_id'];
+      $id = $this->decoder->getDecoder($this->configuration['response_format'])->decode($response->getBody())['rows'][0]['cartodb_id'];
       $object = $this->load($id);
       $result = SAVED_NEW;
     }
@@ -86,20 +83,48 @@ class CartoClient extends ExternalEntityStorageClientBase {
     return $result;
   }
 
+  public function loadMultiple(array $ids = NULL) {
+    $query = 'SELECT * FROM ' . $this->configuration['endpoint'];
+    // Sometimes we get an array with null values via Search API. Make sure to
+    // filter it first.
+    $ids = array_filter($ids);
+    if (!empty($ids)) {
+      $query .= ' WHERE cartodb_id IN (' . implode(',', $ids ) . ');';
+    }
+    $response = $this->cartoExecuteQuery($query);
+    $content = $response->getBody();
+    $format = $this->configuration['response_format'];
+    $content = $this->responseDecoderFactory->getDecoder($format)->decode($content);
+    if (empty($content['rows'])) {
+      return [];
+    }
+    $data = [];
+    foreach ($content['rows'] as $row) {
+      $data[$row['cartodb_id']] = $row;
+    }
+    return $data;
+  }
+
   /**
    * {@inheritdoc}
    */
-  public function query(array $parameters) {
+  public function query(array $parameters = [], array $sorts = [], $start = NULL, $length = NULL) {
     $query = 'SELECT * FROM ' . $this->configuration['endpoint'];
-    if ($parameters) {
-      $query .= ' LIMIT ' . $parameters['pagesize'] . ' OFFSET ' . $parameters['page'];
+    if ($length) {
+      $query .= ' LIMIT ' . $length;
+    }
+    if ($start) {
+      $query .= ' OFFSET ' . $start;
     }
 
     $response = $this->cartoExecuteQuery($query);
 
-    $results = $this->decoder->getDecoder($this->configuration['format'])->decode($response->getBody())['rows'];
+    $results = $this->responseDecoderFactory->getDecoder($this->configuration['response_format'])
+      ->decode($response->getBody())['rows'];
     foreach ($results as &$result) {
-      $result = ((object) $result);
+      if (is_object($result)) {
+        $result = get_object_vars($result);
+      }
     }
     return $results;
   }
@@ -110,13 +135,11 @@ class CartoClient extends ExternalEntityStorageClientBase {
    * @return \GuzzleHttp\Psr7\Response
    */
   protected function cartoExecuteQuery($query) {
-    $headers = $this->getHttpHeaders();
     $response = $this->httpClient->get(
-      'https://' . key($headers) . '.carto.com/api/v2/sql',
+      'https://' . $this->configuration['api_key']['key'] . '.carto.com/api/v2/sql',
       [
         'query' => [
           'q' => $query,
-          'api_key' => reset($headers)
         ]
       ]
     );
